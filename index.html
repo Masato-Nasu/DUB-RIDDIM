@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#161715">
+<title>DUB RIDDIM</title>
+<meta name="description" content="A DUB rhythm machine with note editing, song arrangement, live effects and mix recording.">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-180.png">
+<link rel="preload" href="./air-horn.wav" as="fetch" crossorigin>
+<style>
+:root{color-scheme:dark;--ink:#161715;--paper:#eae7da;--muted:#afad9e;--accent:#ff7b48;--line:#464741;--panel:#222420}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ink);color:var(--paper);font:14px/1.55 Helvetica,Arial,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif}
+button,input{font:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+main{max-width:810px;margin:auto;padding:clamp(21px,5vw,52px) clamp(14px,4vw,33px) 32px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding-bottom:15px;border-bottom:1px solid var(--line);margin-bottom:15px}
+.eyebrow,.label,.version,.output,.status,.axis,.wave,.kill{font-family:ui-monospace,"SFMono-Regular",Consolas,monospace;letter-spacing:.10em}
+.eyebrow{font-size:10px;color:var(--accent);margin:0 0 5px}
+h1{font-size:clamp(40px,9vw,84px);line-height:.9;letter-spacing:-.065em;margin:0;font-weight:800;white-space:nowrap}
+.version{font-size:10px;color:var(--muted);white-space:nowrap}
+.release-tools{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.release-tools .kill{min-height:29px;padding:0 7px}
+.language-options{display:flex;gap:3px}
+.language-options .kill{letter-spacing:0}
+.language-options .kill[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--ink)}
+@media(max-width:370px){h1{font-size:34px}}
+.scope{height:92px;border:1px solid var(--line);border-radius:5px;background:#10110f;position:relative;overflow:hidden;margin:0 0 13px}
+.scope canvas{width:100%;height:100%;display:block}
+.scope-head{position:absolute;inset:9px 11px auto;display:flex;justify-content:space-between;font:10px ui-monospace,monospace;letter-spacing:.11em;color:var(--muted);pointer-events:none}
+#lamp{display:inline-block;width:6px;height:6px;border-radius:50%;background:#747468;margin:0 6px 1px 0}
+.scope.on #lamp{background:var(--accent);box-shadow:0 0 9px var(--accent)}
+.pad{position:relative;display:grid;place-content:center;text-align:center;width:100%;height:clamp(171px,30vw,242px);padding:27px;border:1px solid #fb9c70;border-radius:6px;color:#24170e;background-color:var(--accent);background-image:linear-gradient(to right,#23171020 1px,transparent 1px),linear-gradient(to bottom,#23171020 1px,transparent 1px);background-size:12.5% 25%;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overflow:hidden;isolation:isolate}
+.pad.active{background-color:#ffa271}
+.pad-title{font-size:clamp(35px,8vw,60px);font-weight:800;line-height:.95;letter-spacing:-.055em}
+.pad-note{margin-top:10px;font-size:12px;font-weight:700}
+.axis{position:absolute;font-size:10px;line-height:1}
+.axis-x{right:10px;bottom:10px}
+.axis-y{left:10px;top:11px}
+.target{display:none;position:absolute;width:33px;height:33px;border:1px solid #27170d;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:-1}
+.active .target{display:block}
+.target::before,.target::after{content:"";background:#27170d;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+.target::before{width:45px;height:1px}.target::after{height:45px;width:1px}
+.hint{color:var(--muted);margin:8px 0 14px;font-size:11px}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.module{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:13px}
+.module h2{display:flex;align-items:baseline;gap:8px;color:var(--paper);font-size:12px;line-height:1.2;margin:0 0 10px}
+.module h2 span{font:10px ui-monospace,monospace;color:var(--accent)}
+.waves{display:flex;gap:4px;margin-bottom:9px}
+.wave,.kill{min-height:34px;color:var(--paper);background:#181a17;border:1px solid #5a5a4e;border-radius:3px;font-size:10px}
+.wave{flex:1;padding:0 4px}
+.wave[aria-pressed="true"]{background:var(--paper);color:var(--ink);border-color:var(--paper)}
+.kill{padding:0 11px;letter-spacing:.06em}
+.kill:hover,.wave:hover{border-color:var(--accent)}
+.slider{display:grid;grid-template-columns:minmax(70px,.8fr) minmax(36px,1.1fr) 61px;gap:7px;align-items:center;min-height:35px}
+.label,.output{font-size:10px}
+.output{text-align:right;color:var(--accent);white-space:nowrap;letter-spacing:0}
+input[type="range"]{width:100%;height:30px;margin:0;accent-color:var(--accent);cursor:pointer}
+.fx-output{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:13px}
+.fx-output .slider{width:min(54%,235px);grid-template-columns:50px minmax(32px,1fr) 34px}
+.status{font-size:10px;color:var(--muted)}
+.modes{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.modes .wave{flex:0 1 118px;min-height:32px}
+.modes .wave[aria-pressed="true"]{background:#38251d;color:var(--accent);border-color:var(--accent)}
+.mixer{margin-top:13px}
+.transport,.record-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.transport .kill,.record-row .kill{min-height:38px}
+.transport .kill:disabled,.record-row .kill:disabled{opacity:.5;cursor:default}
+.file-picker{position:relative;width:126px}
+.track-file{display:block;width:100%;min-height:38px;font-size:0;cursor:pointer}
+.track-file::file-selector-button{width:100%;min-height:38px;margin:0;border:1px solid #5a5a4e;border-radius:3px;color:transparent;background:#181a17;cursor:pointer}
+.track-file::file-selector-button:hover{border-color:var(--accent)}
+.file-caption{position:absolute;inset:0;display:grid;place-items:center;font-size:11px;pointer-events:none}
+.track-filename{flex:1;min-width:42px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:11px}
+.track-name,.file-help{margin:6px 0 0;color:var(--muted);font-size:11px}
+.file-help summary{width:fit-content;cursor:pointer}
+.file-help p{margin:4px 0 0}
+.seek{display:grid;grid-template-columns:minmax(0,1fr) 93px;gap:8px;align-items:center;margin-top:5px}
+.track-volume{max-width:305px}
+.record-row{border-top:1px solid var(--line);padding-top:10px;margin-top:8px}
+.record-button{color:var(--accent)}
+.record-button.recording{background:var(--accent);border-color:var(--accent);color:var(--ink)}
+.take{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.take[hidden]{display:none}
+.take audio{max-width:100%;height:37px}
+.take a{display:inline-flex;align-items:center;text-decoration:none}
+@media(max-width:560px){.controls{grid-template-columns:1fr;gap:8px}.scope{height:70px}.module{padding:10px 12px}.module h2{margin-bottom:7px}.wave,.kill{min-height:38px}.slider{min-height:30px}}
+</style>
+<link rel="stylesheet" href="./groove.css">
+</head>
+<body>
+<main>
+  <header>
+    <div><p class="eyebrow">DUB PRODUCTION STUDIO</p><h1>DUB RIDDIM</h1></div>
+    <div class="release-tools">
+      <button class="kill" id="install" type="button" data-i18n="install" hidden>インストール</button>
+      <div class="language-options" role="group" aria-label="言語" data-i18n-label="language">
+        <button class="kill" type="button" data-language="ja" lang="en" aria-pressed="true">JAPANESE</button>
+        <button class="kill" type="button" data-language="en" lang="en" aria-pressed="false">EN</button>
+      </div>
+      <span class="version">V0.7.0</span>
+    </div>
+  </header>
+  <div class="scope" id="scope">
+    <canvas id="trace" aria-hidden="true"></canvas>
+    <div class="scope-head"><span>OUTPUT MONITOR</span><span><i id="lamp"></i><span id="monitor">STANDBY</span></span></div>
+  </div>
+  <div class="modes" role="group" aria-label="効果音" data-i18n-label="effects">
+    <button type="button" class="wave" data-mode="siren" aria-pressed="true">SIREN</button>
+    <button type="button" class="wave" data-mode="horn" aria-pressed="false">AIR HORN</button>
+    <button type="button" class="wave" data-mode="dub" aria-pressed="false">DUB SPACE</button>
+    <button type="button" class="wave" data-mode="rewind" aria-pressed="false">REWIND</button>
+    <button type="button" class="wave" data-mode="thunder" aria-pressed="false">THUNDER</button>
+  </div>
+  <button class="pad" id="pad" type="button" aria-describedby="hint">
+    <span class="axis axis-y" id="axis-y">↕ PITCH</span>
+    <span class="pad-title">FIRE</span>
+    <span class="pad-note" id="pad-note" data-i18n="sirenNote">押して鳴らす</span>
+    <span class="axis axis-x" id="axis-x">MODULATION ↔</span>
+    <span class="target" id="target" aria-hidden="true"></span>
+  </button>
+  <p class="hint" id="hint">上下で音程、左右で揺れの速さ。離すと残響が続きます。PCは Space でも演奏できます。</p>
+  <a class="music-jump" href="#music-rec" data-i18n="chooseTrack">曲を選ぶ</a>
+  <section class="controls" aria-label="音色とディレイ" data-i18n-label="soundControls">
+    <div class="module">
+      <h2><span>01</span> OSCILLATOR</h2>
+      <div class="waves" role="group" aria-label="波形" data-i18n-label="waveforms">
+        <button type="button" class="wave" data-wave="sine" aria-pressed="false">SINE</button>
+        <button type="button" class="wave" data-wave="triangle" aria-pressed="false">TRIANGLE</button>
+        <button type="button" class="wave" data-wave="square" aria-pressed="true">SQUARE</button>
+      </div>
+      <label class="slider"><span class="label" data-i18n="depth">揺れの深さ</span><input id="depth" type="range" min="0" max="100" value="53"><output class="output" for="depth" id="depth-out">53%</output></label>
+    </div>
+    <div class="module">
+      <h2><span>02</span> TAPE DELAY</h2>
+      <label class="slider"><span class="label" data-i18n="time">間隔</span><input id="time" type="range" min="85" max="950" step="5" value="365"><output class="output" for="time" id="time-out">365 ms</output></label>
+      <label class="slider"><span class="label" data-i18n="feedback">繰り返し</span><input id="feedback" type="range" min="0" max="86" value="57"><output class="output" for="feedback" id="feedback-out">57%</output></label>
+      <label class="slider"><span class="label" data-i18n="echo">ディレイ量</span><input id="echo" type="range" min="0" max="100" value="58"><output class="output" for="echo" id="echo-out">58%</output></label>
+    </div>
+  </section>
+  <div class="fx-output">
+    <label class="slider"><span class="label" data-i18n="volume">効果音量</span><input id="volume" type="range" min="0" max="100" value="42"><output class="output" for="volume" id="volume-out">42%</output></label>
+    <button class="kill" id="kill" type="button" data-i18n="kill">■ 残響を止める</button>
+  </div>
+  <section class="module groove" aria-labelledby="groove-title">
+    <h2 id="groove-title"><span>03</span> ROOTS / RHYTHM MACHINE</h2>
+    <div class="groove-transport">
+      <button class="kill groove-play" id="groove-play">▶ PLAY</button>
+      <label class="groove-tempo"><span class="label">BPM <b id="groove-bpm-out">144</b></span><input id="groove-bpm" aria-label="BPM" type="range" min="65" max="155" value="144"></label>
+      <output class="output" id="groove-clock">01:01 · Am</output>
+    </div>
+    <div class="groove-selects">
+      <select id="groove-preset" aria-label="Rhythm"><option value="heavy">HEAVY STEPPERS</option><option value="roots">ROOTS ONE DROP</option><option value="space">SPACE DUB</option></select>
+      <select id="groove-key" aria-label="Key"><option value="0">A MINOR</option><option value="-2">G MINOR</option><option value="3">C MINOR</option><option value="-4">F MINOR</option></select>
+      <select id="groove-progression" aria-label="Chords"><option value="one">Am · Am · Am · Am</option><option value="two">Am · Am · G · G</option><option value="four">Am · G · F · G</option></select>
+    </div>
+    <button class="kill" id="groove-undo-preset" data-i18n="grooveUndo" hidden>切り替えを戻す</button>
+    <p class="hint" data-i18n="grooveHint">PLAYでリズム開始。パート名で音を抜き差し。FIREでサイレンを重ねられます。</p>
+    <div id="groove-mixer"></div>
+    <div class="groove-actions"><button class="kill" id="groove-drop">BASS ONLY</button><button class="kill" id="groove-fill">FILL</button><button class="kill" id="groove-sync">SYNC DELAY</button></div>
+    <details id="groove-editor" open><summary data-i18n="grooveEdit">リズム・ベースを編集</summary>
+      <div class="groove-bars" id="groove-patterns"></div>
+      <div class="groove-bars" id="groove-bars"></div>
+      <p class="hint" data-i18n="grooveGridHint">ドラムはマスでON/OFF。音符は下のピアノロールで編集します。</p>
+      <div class="groove-scroll"><div id="groove-grid"></div></div>
+            <div class="piano-editor">
+        <div class="piano-toolbar"><select id="groove-piano-track" aria-label="Piano roll instrument"><option value="bass">BASS</option><option value="skank">SKANK / CHORD</option><option value="bubble">ORGAN / MELODY</option></select><button class="kill" id="groove-oct-down">− OCT</button><button class="kill" id="groove-oct-up">＋ OCT</button></div>
+        <p class="hint" id="groove-piano-hint"></p>
+        <div class="piano-scroll" id="groove-piano-scroll"><div class="piano-content"><div class="piano-corner">NOTE</div><div class="piano-ruler"><span>1</span><span>1.2</span><span>1.3</span><span>1.4</span><span>2</span><span>2.2</span><span>2.3</span><span>2.4</span><span>3</span><span>3.2</span><span>3.3</span><span>3.4</span><span>4</span><span>4.2</span><span>4.3</span><span>4.4</span></div><div class="piano-keys" id="groove-piano-keys"></div><div class="piano-roll" id="groove-piano-roll" tabindex="0" aria-label="Piano roll"><div id="groove-piano-rows"></div><div id="groove-piano-notes"></div><div id="groove-piano-playhead" hidden></div></div></div></div>
+        <p class="piano-selected" id="groove-piano-selected" role="status"></p>
+        <div class="piano-properties"><label><span id="groove-pitch-label">音程</span><select id="groove-note-pitch" aria-label="Note pitch"></select></label><label><span id="groove-start-label">開始マス</span><input id="groove-note-start" type="number" min="1" max="64" value="1" aria-label="Note start"></label><label><span id="groove-length-label">長さ（マス）</span><input id="groove-note-length" type="number" min="1" max="64" value="2" aria-label="Note length"></label><label><span id="groove-velocity-label">強さ</span><input id="groove-note-velocity" type="range" min="1" max="127" value="100" aria-label="Note velocity"></label></div>
+        <div class="groove-actions"><button class="kill" id="groove-note-add">音符を追加</button><button class="kill" id="groove-note-delete">削除</button><button class="kill" id="groove-note-duplicate">複製</button><button class="kill" id="groove-note-undo">戻す</button><button class="kill" id="groove-note-clear">この小節を空に</button></div>
+        <details class="piano-tone"><summary id="groove-tone-title">音色を調整</summary><div class="piano-properties"><label>WAVE<select id="groove-tone-wave"><option value="sine">SINE</option><option value="triangle">TRIANGLE</option><option value="sawtooth">SAW</option><option value="square">SQUARE</option></select></label><label>TONE<input id="groove-tone-cutoff" type="range" min="150" max="7000" step="50" value="550"></label><label>RELEASE<input id="groove-tone-release" type="range" min="2" max="80" value="8"></label></div></details>
+      </div>
+
+      <div class="groove-actions"><button class="kill" id="groove-copy" data-i18n="grooveCopy">この小節を全小節にコピー</button></div>
+    </details>
+    <p class="hint" id="groove-status" role="status" data-i18n="grooveReady">4小節ループ · オリジナルの合成音源 · 編集は端末に自動保存</p>
+  </section>
+  <section class="module groove song" aria-labelledby="song-title">
+    <h2 id="song-title"><span>04</span> SONG / ARRANGEMENT</h2>
+    <p class="hint" data-i18n="songHint">セクションを上から順に演奏。各パートのON/OFFとエコーで展開を作ります。</p>
+    <div class="groove-actions"><button class="kill groove-play" id="groove-song-play">▶ PLAY SONG</button><button class="kill" id="groove-export" data-i18n="songExport">曲全体をWAV保存</button></div>
+    <p class="output" id="groove-duration"></p>
+    <div id="groove-scenes"></div>
+    <div class="groove-actions"><button class="kill" id="groove-add" data-i18n="songAdd">＋ セクション追加</button><button class="kill" id="groove-save" data-i18n="grooveSave">セッション保存</button><label class="kill groove-load"><span data-i18n="grooveLoad">読み込み</span><input id="groove-load" type="file" accept=".json,application/json"></label></div>
+    <p class="hint" data-i18n="songNote">WAVはここで組んだ曲を書き出します。FIREの手演奏や読み込んだ曲も合わせる場合は、下の録音開始→PLAY SONGでミックス録音してください。</p>
+  </section>
+  <section class="module mixer" id="music-rec" aria-labelledby="mixer-title">
+    <h2 id="mixer-title"><span>05</span> MUSIC &amp; REC</h2>
+    <div class="transport">
+      <div class="file-picker">
+        <input class="track-file" id="track-file" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.mp4" aria-label="曲を選ぶ" data-i18n-label="chooseTrack" aria-describedby="track-name">
+
+      </div>
+      <span class="track-filename" id="track-filename" data-i18n="noTrack">ファイル未選択</span>
+      <button type="button" class="kill" id="track-play" data-i18n="play" disabled>▶ 再生</button>
+    </div>
+    <p class="track-name" id="track-name" data-i18n="trackInitial" role="status">端末に保存したMP3やWAVを選べます。</p>
+    <details class="file-help"><summary data-i18n="fileHelp">ファイル選択が開かないとき</summary><p><a class="chrome-open" href="intent://dub-siren.sunny-seed-0354.chatgpt.site/#Intent;scheme=https;package=com.android.chrome;end" data-i18n="openChrome">AndroidのChromeで開く</a></p><p data-i18n="fileHelpText">ChatGPTアプリ内で開いている場合は、このページをChromeで開いて曲を選んでください。</p></details>
+    <audio id="track" preload="metadata" hidden></audio>
+    <div class="seek">
+      <input type="range" id="track-seek" min="0" max="1" step="0.1" value="0" aria-label="曲の再生位置" data-i18n-label="seek" disabled>
+      <output class="output" id="track-time">0:00 / 0:00</output>
+    </div>
+    <label class="slider track-volume"><span class="label" data-i18n="trackVolume">曲の音量</span><input id="track-volume" type="range" min="0" max="100" value="67"><output class="output" for="track-volume" id="track-volume-out">67%</output></label>
+    <div class="record-row">
+      <button type="button" class="kill record-button" id="record" data-i18n="recordStart">● 録音開始</button>
+      <output class="output" id="record-time">0:00</output>
+      <span class="status" id="record-status" data-i18n="recordHint" role="status">リズム・曲・効果音をミックスして録音</span>
+    </div>
+    <div class="take" id="take" hidden>
+      <audio id="take-audio" controls preload="metadata" aria-label="録音の試聴" data-i18n-label="takePreview"></audio>
+      <a class="kill" id="take-save" data-i18n="takeSave">録音を保存</a>
+    </div>
+  </section>
+  <p class="status" id="status" role="status" hidden></p>
+</main>
+<script src="./locale.js"></script>
+<script>
+"use strict";
+const byId = id => document.getElementById(id);
+const install = byId("install");
+let installPrompt;
+window.addEventListener("beforeinstallprompt", event => {
+  event.preventDefault();
+  installPrompt = event;
+  install.hidden = false;
+});
+install.addEventListener("click", async () => {
+  const prompt = installPrompt;
+  if (!prompt) return;
+  installPrompt = undefined;
+  install.hidden = true;
+  try {
+    await prompt.prompt();
+  } catch (error) {
+    console.warn("DUB RIDDIM install prompt unavailable.", error);
+  }
+});
+window.addEventListener("appinstalled", () => {
+  installPrompt = undefined;
+  install.hidden = true;
+});
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).catch(error => {
+    console.warn("DUB RIDDIM offline setup unavailable.", error);
+  });
+}
+
+const pad = byId("pad");
+const scope = byId("scope");
+const monitor = byId("monitor");
+const target = byId("target");
+const music = byId("track");
+const hits = new Set();
+const knobs = Object.fromEntries(["depth", "time", "feedback", "echo", "volume"].map(id => [id, byId(id)]));
+const level = id => Number(knobs[id].value) / 100;
+const sirenLevels = { sine: 5.5, triangle: 1.95, square: 0.36 };
+let audio;
+let gesture;
+let voice;
+let wave = "square";
+let mode = "siren";
+let stopGeneration = 0;
+
+function adjust(param, value, speed = 0.018) {
+  param.setTargetAtTime(value, audio.context.currentTime, speed);
+}
+
+function makeEcho() {
+  const { context, input, limiter } = audio;
+  const delay = context.createDelay(2);
+  const tone = context.createBiquadFilter();
+  const feedback = context.createGain();
+  const wet = context.createGain();
+  delay.delayTime.value = Number(knobs.time.value) / 1000;
+  tone.type = "lowpass";
+  tone.frequency.value = 2200;
+  feedback.gain.value = level("feedback");
+  wet.gain.value = level("echo") * 0.72;
+  input.connect(delay).connect(tone);
+  tone.connect(feedback).connect(delay);
+  tone.connect(wet).connect(limiter);
+  audio.echo = { delay, tone, feedback, wet };
+}
+
+async function unlock() {
+  if (!audio) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) throw new Error("Web Audio is unavailable");
+    const context = new AudioContextClass();
+    const input = context.createGain();
+    const limiter = context.createDynamicsCompressor();
+    const volume = context.createGain();
+    const trackGain = context.createGain();
+    const master = context.createDynamicsCompressor();
+    const headroom = context.createGain();
+    const peakGuard = context.createWaveShaper();
+    const masterGain = context.createGain();
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 1024;
+    limiter.threshold.value = -12;
+    limiter.ratio.value = 12;
+    volume.gain.value = level("volume") * 0.68;
+    trackGain.gain.value = Number(byId("track-volume").value) / 100;
+    master.threshold.value = -6;
+    master.ratio.value = 8;
+    // Keep ordinary levels linear and round off peaks before playback and recording.
+    headroom.gain.value = 0.5;
+    peakGuard.curve = Float32Array.from({ length: 4097 }, (_, index) => {
+      const sample = 4 * index / 4096 - 2;
+      const magnitude = Math.abs(sample);
+      return magnitude <= 0.93 ? sample : Math.sign(sample) * (0.93 + 0.22 * Math.tanh((magnitude - 0.93) / 0.22));
+    });
+    masterGain.gain.value = 0.85;
+    input.connect(limiter).connect(volume).connect(master);
+    context.createMediaElementSource(music).connect(trackGain).connect(master);
+    master.connect(headroom).connect(peakGuard).connect(masterGain).connect(analyser).connect(context.destination);
+    audio = { context, input, limiter, volume, trackGain, master, masterGain, analyser, samples: new Float32Array(analyser.fftSize) };
+    makeEcho();
+  }
+  return audio.context.state === "running" ? Promise.resolve() : audio.context.resume();
+}
+
+function position(event) {
+  const box = pad.getBoundingClientRect();
+  const clamp = value => Math.min(1, Math.max(0, value));
+  return { x: clamp((event.clientX - box.left) / box.width), y: clamp((event.clientY - box.top) / box.height) };
+}
+
+let rewindLoad;
+async function fireRewind(point, generation) {
+  // Short isolated effect from the reference recording supplied for this app.
+  rewindLoad ??= fetch("./rewind.wav")
+    .then(r => { if (!r.ok) throw new Error("Rewind sample unavailable"); return r.arrayBuffer(); })
+    .then(bytes => audio.context.decodeAudioData(bytes))
+    .catch(error => { rewindLoad = undefined; throw error; });
+  const buffer = await rewindLoad;
+  if (generation !== stopGeneration || document.hidden || mode !== "rewind") return;
+  const rate = Math.pow(2, (.5 - point.y) * .8) * (1.2 - point.x * .4);
+  playHit(buffer, rate, 12000, 1.15);
+}
+
+function move(point) {
+  target.style.left = (point.x * 100) + "%";
+  target.style.top = (point.y * 100) + "%";
+  if (mode === "dub" && gesture) window.dubPerformance?.move(point);
+  if (!voice) return;
+  adjust(voice.osc.frequency, 125 * Math.pow(8, 1 - point.y));
+  adjust(voice.lfo.frequency, 0.55 * Math.pow(22, point.x));
+}
+
+function makeSiren(point) {
+  const { context, input } = audio;
+  const osc = context.createOscillator();
+  const lfo = context.createOscillator();
+  const depth = context.createGain();
+  const envelope = context.createGain();
+  osc.type = wave;
+  osc.frequency.value = 125 * Math.pow(8, 1 - point.y);
+  lfo.type = "triangle";
+  lfo.frequency.value = 0.55 * Math.pow(22, point.x);
+  depth.gain.value = level("depth") * 1150;
+  envelope.gain.value = 0;
+  lfo.connect(depth).connect(osc.detune);
+  osc.connect(envelope).connect(input);
+  adjust(envelope.gain, sirenLevels[wave], 0.012);
+  lfo.start();
+  osc.start();
+  return { osc, lfo, depth, envelope };
+}
+
+async function fireHorn(point, generation) {
+  // "air horn" by the_mred, CC0. https://freesound.org/people/the_mred/sounds/741817/
+  audio.horn ??= fetch("./air-horn.wav")
+    .then(response => {
+      if (!response.ok) throw new Error("Air horn sample unavailable");
+      return response.arrayBuffer();
+    })
+    .then(bytes => audio.context.decodeAudioData(bytes))
+    .catch(error => {
+      audio.horn = undefined;
+      throw error;
+    });
+  const buffer = await audio.horn;
+  if (generation !== stopGeneration || document.hidden) return;
+  playHit(buffer, 1.06 - point.y * 0.12, 3200 + point.x * 6800, 1);
+}
+
+let thunderBuffer;
+let thunderLoad;
+
+function prepareThunder() {
+  // "Spring tank reverb crashing noise.wav" by Solar01, CC0.
+  // https://freesound.org/people/Solar01/sounds/662099/
+  thunderLoad ??= fetch("./thunder.wav?v=2")
+    .then(response => {
+      if (!response.ok) throw new Error("Thunder sample unavailable");
+      return response.arrayBuffer();
+    })
+    .then(bytes => {
+      const OfflineContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      const decoder = audio?.context ?? new OfflineContext(1, 1, 32000);
+      return decoder.decodeAudioData(bytes);
+    })
+    .then(buffer => { thunderBuffer = buffer; return buffer; })
+    .catch(error => {
+      thunderLoad = undefined;
+      throw error;
+    });
+  return thunderLoad;
+}
+
+prepareThunder().catch(() => {});
+
+function playHit(buffer, rate, cutoff, volume) {
+  const { context, input } = audio;
+  const source = context.createBufferSource();
+  const tone = context.createBiquadFilter();
+  const gain = context.createGain();
+  source.buffer = buffer;
+  source.playbackRate.value = rate;
+  tone.type = "lowpass";
+  tone.frequency.value = cutoff;
+  gain.gain.value = volume;
+  source.connect(tone).connect(gain).connect(input);
+  hits.add(source);
+  source.onended = () => {
+    hits.delete(source);
+    source.disconnect();
+    tone.disconnect();
+    gain.disconnect();
+  };
+  source.start();
+}
+
+async function start(id, point) {
+  if (gesture) return;
+  const active = { id, point, kind: mode, generation: stopGeneration };
+  gesture = active;
+  pad.classList.add("active");
+  move(point);
+  try {
+    if (audio?.context.state !== "running") await unlock();
+    if (active.generation !== stopGeneration || document.hidden) return;
+    if ((active.kind === "siren" || active.kind === "dub" || active.kind === "rewind") && gesture !== active) return;
+    byId("status").hidden = true;
+    if (active.kind === "dub") {
+      window.dubPerformance?.begin(active.point);
+    } else if (active.kind === "rewind") {
+      await fireRewind(active.point, active.generation);
+    } else if (active.kind === "thunder") {
+      const buffer = thunderBuffer ?? await prepareThunder();
+      if (active.generation !== stopGeneration || document.hidden || mode !== "thunder") return;
+      playHit(buffer, 1.14 - active.point.y * 0.29, 3200 + active.point.x * 7200, 2.15);
+    } else if (active.kind === "horn") {
+      await fireHorn(active.point, active.generation);
+    } else {
+      voice = makeSiren(active.point);
+    }
+  } catch {
+    if (active.generation !== stopGeneration || document.hidden) return;
+    if (gesture === active) release();
+    dubLocale.set(byId("status"), "audioError", "音声を開始できませんでした。通信を確認して、もう一度FIREを押してください。");
+    byId("status").hidden = false;
+  }
+}
+
+function release() {
+  window.dubPerformance?.end();
+  gesture = undefined;
+  pad.classList.remove("active");
+  if (!voice) return;
+  const { osc, lfo, depth, envelope } = voice;
+  voice = undefined;
+  const now = audio.context.currentTime;
+  envelope.gain.cancelScheduledValues(now);
+  envelope.gain.setTargetAtTime(0, now, 0.018);
+  osc.onended = () => {
+    osc.disconnect();
+    lfo.disconnect();
+    depth.disconnect();
+    envelope.disconnect();
+  };
+  osc.stop(now + 0.13);
+  lfo.stop(now + 0.13);
+}
+
+function clearEcho() {
+  window.dubPerformance?.cut();
+  stopGeneration++;
+  release();
+  if (!audio) return;
+  for (const hit of hits) hit.stop();
+  hits.clear();
+  const { delay, tone, feedback, wet } = audio.echo;
+  adjust(wet.gain, 0, 0.005);
+  const oldInput = audio.input;
+  oldInput.disconnect(delay);
+  feedback.disconnect();
+  audio.input = audio.context.createGain();
+  audio.input.connect(audio.limiter);
+  setTimeout(() => oldInput.disconnect(), 150);
+  setTimeout(() => {
+    delay.disconnect();
+    tone.disconnect();
+    wet.disconnect();
+  }, 40);
+  makeEcho();
+}
+
+pad.addEventListener("pointerdown", event => {
+  if (event.button !== 0 || gesture) return;
+  pad.setPointerCapture(event.pointerId);
+  start(event.pointerId, position(event));
+});
+pad.addEventListener("pointermove", event => {
+  if (gesture?.id !== event.pointerId) return;
+  gesture.point = position(event);
+  move(gesture.point);
+});
+for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
+  pad.addEventListener(type, event => {
+    if (gesture?.id === event.pointerId) release();
+  });
+}
+pad.addEventListener("contextmenu", event => event.preventDefault());
+let tapTimer;
+pad.addEventListener("click", event => {
+  if (event.detail !== 0 || gesture || Date.now() - lastKey < 350) return;
+  start("tap", { x: 0.42, y: 0.47 });
+  clearTimeout(tapTimer);
+  tapTimer = setTimeout(() => { if (gesture?.id === "tap") release(); }, 330);
+});
+let lastKey = 0;
+window.addEventListener("keydown", event => {
+  if (event.code === "Escape") clearEcho();
+  if (event.code !== "Space" || (event.target !== pad && event.target.closest("button,input,select,a,summary"))) return;
+  event.preventDefault();
+  if (event.repeat) return;
+  lastKey = Date.now();
+  start("space", { x: 0.42, y: 0.47 });
+});
+window.addEventListener("keyup", event => {
+  if (event.code !== "Space" || gesture?.id !== "space") return;
+  event.preventDefault();
+  lastKey = Date.now();
+  release();
+});
+window.addEventListener("blur", release);
+document.addEventListener("visibilitychange", () => { if (document.hidden) release(); });
+byId("kill").addEventListener("click", clearEcho);
+
+for (const button of document.querySelectorAll("[data-wave]")) {
+  button.addEventListener("click", () => {
+    wave = button.dataset.wave;
+    for (const item of document.querySelectorAll("[data-wave]")) item.setAttribute("aria-pressed", String(item === button));
+    if (!voice) return;
+    voice.osc.type = wave;
+    adjust(voice.envelope.gain, sirenLevels[wave]);
+  });
+}
+
+const modes = {
+  rewind: ["SHORT ← LONG →", "タップでリワインド", "上下で音程、左右で再生速度と長さを変えられます。中央は元の速度です。"],
+  dub: ["DRY ← ECHO →", "再生中の音を指でDUBミックス", "先に曲かリズムを再生。右へ動かすと深いエコー、上下で音の明るさ。離すと余韻が続きます。"],
+  siren: ["MODULATION ↔", "押して鳴らす", "上下で音程、左右で揺れの速さ。離すと残響が続きます。"],
+  horn: ["TONE ↔", "タップでホーンを鳴らす", "タップした位置で音程と音色が変わります。短く連打できます。"],
+  thunder: ["CRACK ↔", "スプリングを打つ", "タップでスプリングの破裂音。上下で音の深さ、左右で鋭さが変わります。"]
+};
+function updatePadCopy() {
+  const [axis, note, hint] = modes[mode];
+  byId("axis-x").textContent = axis;
+  document.querySelector(".pad-title").textContent = mode === "dub" ? "DUB SPACE" : mode === "rewind" ? "REWIND" : "FIRE";
+  byId("axis-y").textContent = mode === "dub" ? "↑ BRIGHT / ↓ DARK" : mode === "thunder" ? "↕ RUMBLE" : "↕ PITCH";
+  dubLocale.set(byId("pad-note"), mode + "Note", note);
+  byId("hint").textContent = dubLocale.text(mode + "Hint", hint) + " " +
+    dubLocale.text("keyboard", "PCは Space でも演奏できます。");
+}
+updatePadCopy();
+document.addEventListener("dub-language-change", updatePadCopy);
+
+const modeButtons = document.querySelectorAll("[data-mode]");
+for (const button of modeButtons) {
+  button.addEventListener("click", () => {
+    if (mode === button.dataset.mode) return;
+    release();
+    mode = button.dataset.mode;
+    if (mode === "thunder") unlock().catch(() => {});
+    for (const item of modeButtons) item.setAttribute("aria-pressed", String(item === button));
+    updatePadCopy();
+  });
+}
+
+const parameters = {
+  depth: () => { if (voice) adjust(voice.depth.gain, level("depth") * 1150); },
+  time: () => adjust(audio.echo.delay.delayTime, Number(knobs.time.value) / 1000, 0.045),
+  feedback: () => adjust(audio.echo.feedback.gain, level("feedback")),
+  echo: () => adjust(audio.echo.wet.gain, level("echo") * 0.72),
+  volume: () => adjust(audio.volume.gain, level("volume") * 0.68)
+};
+for (const [id, knob] of Object.entries(knobs)) {
+  knob.addEventListener("input", () => {
+    byId(id + "-out").value = knob.value + (id === "time" ? " ms" : "%");
+    if (audio) parameters[id]();
+  });
+}
+
+function clock(seconds) {
+  const total = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
+  return Math.floor(total / 60) + ":" + String(total % 60).padStart(2, "0");
+}
+
+const trackFile = byId("track-file");
+const trackPlay = byId("track-play");
+const trackName = byId("track-name");
+const trackSeek = byId("track-seek");
+let musicUrl;
+
+function updateTransport() {
+  const canSeek = Number.isFinite(music.duration) && music.duration > 0;
+  trackSeek.disabled = !canSeek;
+  trackSeek.max = canSeek ? music.duration : 1;
+  trackSeek.value = canSeek ? music.currentTime : 0;
+  byId("track-time").value = clock(music.currentTime) + " / " + clock(music.duration);
+  if (music.paused) dubLocale.set(trackPlay, "play", "▶ 再生");
+  else dubLocale.set(trackPlay, "pause", "Ⅱ 一時停止");
+}
+
+trackFile.addEventListener("change", () => {
+  const file = trackFile.files[0];
+  if (!file) return;
+  const filename = byId("track-filename");
+  delete filename.dataset.i18n;
+  filename.textContent = file.name;
+  filename.title = file.name;
+  music.pause();
+  const previousUrl = musicUrl;
+  musicUrl = URL.createObjectURL(file);
+  music.src = musicUrl;
+  music.load();
+  if (previousUrl) URL.revokeObjectURL(previousUrl);
+  dubLocale.set(trackName, "trackLoading", "音声ファイルを読み込んでいます。");
+  trackPlay.disabled = false;
+  updateTransport();
+});
+
+trackPlay.addEventListener("click", async () => {
+  if (!music.paused) {
+    music.pause();
+    return;
+  }
+  const selected = musicUrl;
+  try {
+    await Promise.all([unlock(), music.play()]);
+  } catch {
+    if (musicUrl !== selected) return;
+    music.pause();
+    dubLocale.set(trackName, "trackPlayError", "再生できませんでした。別の音声ファイルをお試しください。");
+  }
+});
+for (const type of ["loadedmetadata", "timeupdate", "play", "pause", "ended"]) {
+  music.addEventListener(type, updateTransport);
+}
+music.addEventListener("loadedmetadata", () => {
+  dubLocale.set(trackName, "trackReady", "読み込み完了。再生できます。");
+});
+music.addEventListener("error", () => {
+  trackPlay.disabled = true;
+  dubLocale.set(trackName, "trackReadError", "読み込めませんでした。端末に保存したMP3やWAVを選んでください。");
+  updateTransport();
+});
+trackSeek.addEventListener("input", () => {
+  if (!trackSeek.disabled) music.currentTime = Number(trackSeek.value);
+  updateTransport();
+});
+byId("track-volume").addEventListener("input", event => {
+  byId("track-volume-out").value = event.target.value + "%";
+  if (audio) adjust(audio.trackGain.gain, Number(event.target.value) / 100);
+});
+
+const record = byId("record");
+const recordTime = byId("record-time");
+const recordStatus = byId("record-status");
+const take = byId("take");
+const takeAudio = byId("take-audio");
+const takeSave = byId("take-save");
+let recording;
+let takeUrl;
+const recordFormats = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"];
+const Recorder = window.MediaRecorder;
+if (!Recorder) {
+  record.disabled = true;
+  dubLocale.set(recordStatus, "recordUnavailable", "このブラウザーでは録音できません。");
+}
+
+function finishRecording(current, failed = false) {
+  if (recording !== current) return;
+  recording = undefined;
+  clearInterval(current.timer);
+  audio.masterGain.disconnect(current.destination);
+  for (const track of current.destination.stream.getTracks()) track.stop();
+  record.disabled = false;
+  record.classList.remove("recording");
+  dubLocale.set(record, "recordStart", "● 録音開始");
+  if (!failed && current.chunks.length) {
+    const type = current.chunks[0].type || current.recorder.mimeType;
+    const extension = type.includes("mp4") ? "m4a" : type.includes("ogg") ? "ogg" : "webm";
+    const previousUrl = takeUrl;
+    takeUrl = URL.createObjectURL(new Blob(current.chunks, { type }));
+    takeAudio.src = takeUrl;
+    takeSave.href = takeUrl;
+    takeSave.download = "DUB-RIDDIM-" + new Date().toISOString().slice(0, 19).replace(/:/g, "-") + "." + extension;
+    if (previousUrl) URL.revokeObjectURL(previousUrl);
+    dubLocale.set(recordStatus, "recordDone", "録音完了");
+  } else {
+    dubLocale.set(recordStatus, "recordSaveError", "録音を保存できませんでした。");
+  }
+  take.hidden = !takeUrl;
+}
+
+record.addEventListener("click", async () => {
+  if (recording) {
+    record.disabled = true;
+    recordTime.value = clock((performance.now() - recording.started) / 1000);
+    recording.recorder.stop();
+    return;
+  }
+  record.disabled = true;
+  try {
+    await unlock();
+    const destination = audio.context.createMediaStreamDestination();
+    const mimeType = recordFormats.find(type => Recorder.isTypeSupported(type));
+    const recorder = new Recorder(destination.stream, mimeType ? { mimeType } : undefined);
+    const current = { recorder, destination, chunks: [], started: performance.now() };
+    recording = current;
+    audio.masterGain.connect(destination);
+    recorder.addEventListener("dataavailable", event => {
+      if (event.data.size) current.chunks.push(event.data);
+    });
+    recorder.addEventListener("stop", () => finishRecording(current));
+    recorder.addEventListener("error", () => finishRecording(current, true));
+    recorder.start(1000);
+    takeAudio.pause();
+    take.hidden = true;
+    recordTime.value = "0:00";
+    dubLocale.set(recordStatus, "recording", "録音中");
+    dubLocale.set(record, "recordStop", "■ 録音停止");
+    record.classList.add("recording");
+    current.timer = setInterval(() => { recordTime.value = clock((performance.now() - current.started) / 1000); }, 200);
+  } catch {
+    if (recording) finishRecording(recording, true);
+    else dubLocale.set(recordStatus, "recordStartError", "録音を開始できませんでした。");
+  } finally {
+    record.disabled = false;
+  }
+});
+
+const canvas = byId("trace");
+const painter = canvas.getContext("2d");
+function draw() {
+  const ratio = window.devicePixelRatio || 1;
+  const width = Math.round(canvas.clientWidth * ratio);
+  const height = Math.round(canvas.clientHeight * ratio);
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+  painter.clearRect(0, 0, width, height);
+  painter.strokeStyle = "#252720";
+  painter.lineWidth = ratio;
+  painter.beginPath();
+  for (let col = 1; col < 24; col++) {
+    painter.moveTo(width * col / 24, 0);
+    painter.lineTo(width * col / 24, height);
+  }
+  for (let row = 1; row < 6; row++) {
+    painter.moveTo(0, height * row / 6);
+    painter.lineTo(width, height * row / 6);
+  }
+  painter.stroke();
+
+  let peak = 0;
+  if (audio?.context.state === "running") audio.analyser.getFloatTimeDomainData(audio.samples);
+  else if (audio) audio.samples.fill(0);
+  painter.beginPath();
+  for (let i = 0; i < 240; i++) {
+    const sample = audio?.samples[Math.floor(i / 240 * audio.samples.length)] ?? 0;
+    const x = width * i / 239;
+    const y = height * (0.59 - Math.tanh(sample * 3.5) * 0.42);
+    peak = Math.max(peak, Math.abs(sample));
+    if (i === 0) painter.moveTo(x, y);
+    else painter.lineTo(x, y);
+  }
+  const lit = peak > 0.0015;
+  painter.strokeStyle = lit ? "#ff9268" : "#6b5243";
+  painter.lineWidth = 1.6 * ratio;
+  painter.stroke();
+  scope.classList.toggle("on", lit);
+  const state = voice || hits.size ? "LIVE" : lit ? music.paused ? "ECHO" : "MUSIC" : "STANDBY";
+  if (monitor.textContent !== state) monitor.textContent = state;
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+</script>
+<script src="./groove.js"></script>
+</body>
+</html>
